@@ -68,6 +68,7 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 
     hearts db 5
 	heartsMsg db 'HEARTS: $'
+	floor db 0
 	
 CODESEG
 
@@ -465,8 +466,8 @@ proc ProcessColor
     
     cmp al, 249           ; פצצה (אדום)
     je hit_red
-    cmp al, 164           ; קיר (אפור)
-    je hit_grey
+    ;cmp al, 250           ; קיר (אפור) 164
+    ;jle hit_grey
     cmp al, 250           ; סוללה (ירוק)
     je hit_green
     ret
@@ -482,8 +483,8 @@ hit_red:
 
 hit_grey:
     call minOneHeart
-	mov [playerX], 260
-	mov [playerY], 150
+	mov [playerX], 20 ;282
+	mov [playerY], 167 ;167
     mov dl, 1
     cmp [hearts], 0
     jle jmp_to_lost_game_collision
@@ -528,7 +529,7 @@ start:
 main_menu: 
 	mov [hearts], 5 ;לוודא שיש 5 לבבות בכל הרצה
 	mov [playerX], 282
-	mov [playerY], 167
+	mov [playerY], 170
 	
 	call OpenStartFile ; פתיחת מסך ההתחלה
     call ReadHeader
@@ -589,7 +590,7 @@ game_loop:
 	
 	; בדיקה האם המשתמש לחץ על כפתור היציאה
 	cmp ah, 01h  
-    je exit_game
+    je jump_to_exit
 
     ; 3. מחק את השחקן על ידי שחזור הרקע הישן
     call RestoreBackground
@@ -606,24 +607,38 @@ game_loop:
     cmp ah, 01h ; Esc
     je exit_game
 	jmp next_iter
-    
+
     ; אם לא נלחץ מקש רלוונטי, שמור רקע שוב וצייר
     ;call SaveBackground
     ;jmp game_loop
 
+move_up:    
+    ;cmp [playerY], 2    ; גבול עליון
+    ;jle next_iter
+    ;dec [playerY]
+    ;jmp next_iter
+	cmp [playerX], 40
+	jl game_loop
+	cmp [playerX], 70
+	jge game_loop
+	sub [playerY],55
+	call SaveBackground
+	jmp game_loop
+
 jump_to_exit:
 jmp exit_game
-
-move_up:    
-    cmp [playerY], 2    ; גבול עליון
-    jle next_iter
-    dec [playerY]
-    jmp next_iter
 move_down:  
-    cmp [playerY], 171  ; גבול תחתון (גובה מסך פחות גובה שחקן)
-    jge next_iter
-    inc [playerY]
-    jmp next_iter
+    ;cmp [playerY], 171  ; גבול תחתון (גובה מסך פחות גובה שחקן)
+    ;jge next_iter
+    ;inc [playerY]
+    ;jmp next_iter
+	cmp [playerX], 40
+	jl game_loop
+	cmp [playerX], 70
+	jge game_loop
+	add [playerY],55
+	call SaveBackground
+	jmp game_loop
 move_left:  
     cmp [playerX], 0    ; גבול שמאל
     jle next_iter
