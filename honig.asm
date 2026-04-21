@@ -4,10 +4,10 @@ STACK 100h
 
 DATASEG
 
-playerX dw 260
-playerY dw 150
+playerX dw ?
+playerY dw ?
 SPRITE_W dw 24
-SPRITE_H dw 31
+SPRITE_H dw 28
 
 player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h,  00h, 00h, 00h, 00h
 			  db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 0Fh, 0Fh, 00h, 00h, 00h, 00h, 00h, 00h, 00h,  00h, 00h, 00h, 00h
@@ -50,7 +50,7 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     backBuffer db 800 dup(0)
 
     ; --- משתנים עבור קובץ ה-BMP ---
-    currentFile db 'bg.bmp', 0
+    currentFile db 'bg_2.bmp', 0
 	startGameFile db 'start.bmp', 0
 	loseFile db 'lost.bmp',0 
 	winFile db 'win.bmp',0 
@@ -527,8 +527,8 @@ start:
 	
 main_menu: 
 	mov [hearts], 5 ;לוודא שיש 5 לבבות בכל הרצה
-	mov [playerX], 260
-	mov [playerY], 150
+	mov [playerX], 282
+	mov [playerY], 167
 	
 	call OpenStartFile ; פתיחת מסך ההתחלה
     call ReadHeader
@@ -615,22 +615,22 @@ jump_to_exit:
 jmp exit_game
 
 move_up:    
-    cmp [playerY], 5    ; גבול עליון
+    cmp [playerY], 2    ; גבול עליון
     jle next_iter
     dec [playerY]
     jmp next_iter
 move_down:  
-    cmp [playerY], 160  ; גבול תחתון (גובה מסך פחות גובה שחקן)
+    cmp [playerY], 171  ; גבול תחתון (גובה מסך פחות גובה שחקן)
     jge next_iter
     inc [playerY]
     jmp next_iter
 move_left:  
-    cmp [playerX], 5    ; גבול שמאל
+    cmp [playerX], 0    ; גבול שמאל
     jle next_iter
     dec [playerX]
     jmp next_iter
 move_right: 
-    cmp [playerX], 290  ; גבול ימין
+    cmp [playerX], 298  ; גבול ימין
     jge next_iter
     inc [playerX]
     jmp next_iter
