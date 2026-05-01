@@ -1,9 +1,9 @@
 
  Start  Stop   Length Name               Class
 
- 00000H 00443H 00444H _TEXT              CODE
- 00450H 00FFBH 00BACH _DATA              DATA
- 01000H 010FFH 00100H STACK              STACK
+ 00000H 004FDH 004FEH _TEXT              CODE
+ 00500H 010ABH 00BACH _DATA              DATA
+ 010B0H 011AFH 00100H STACK              STACK
 
 Program entry point at 0000:032F
 

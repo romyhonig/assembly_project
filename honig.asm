@@ -558,7 +558,7 @@ wait_for_rules_input:
     mov ah, 00h
     int 16h
 	cmp ah, 01h 
-	je jump_to_exit
+	je jump_to_exit_helper
     cmp ah, 39h ; Space - מחזיר למסך הבית
     je main_menu ; חוזר להציג את מסך הבית
     jmp wait_for_rules_input
@@ -590,7 +590,7 @@ game_loop:
 	
 	; בדיקה האם המשתמש לחץ על כפתור היציאה
 	cmp ah, 01h  
-    je jump_to_exit
+    je jump_to_exit_helper
 
     ; 3. מחק את השחקן על ידי שחזור הרקע הישן
     call RestoreBackground
@@ -599,67 +599,131 @@ game_loop:
     cmp ah, 48h ; Up
     je move_up
     cmp ah, 50h ; Down
-    je move_down
+    je move_down_helper
     cmp ah, 4Bh ; Left
     je move_left
     cmp ah, 4Dh ; Right
     je move_right
     cmp ah, 01h ; Esc
-    je exit_game
+    je jump_to_exit_helper2
 	jmp next_iter
 
-    ; אם לא נלחץ מקש רלוונטי, שמור רקע שוב וצייר
-    ;call SaveBackground
-    ;jmp game_loop
+jump_to_exit_helper:
+	jmp jump_to_exit_helper2
 
-move_up:    
-    ;cmp [playerY], 2    ; גבול עליון
-    ;jle next_iter
-    ;dec [playerY]
-    ;jmp next_iter
-	cmp [playerX], 40
-	jl game_loop
-	cmp [playerX], 70
-	jge game_loop
-	sub [playerY],55
-	call SaveBackground
-	jmp game_loop
 
-jump_to_exit:
-jmp exit_game
-move_down:  
-    ;cmp [playerY], 171  ; גבול תחתון (גובה מסך פחות גובה שחקן)
-    ;jge next_iter
-    ;inc [playerY]
-    ;jmp next_iter
-	cmp [playerX], 40
-	jl game_loop
-	cmp [playerX], 70
-	jge game_loop
-	add [playerY],55
-	call SaveBackground
-	jmp game_loop
 move_left:  
     cmp [playerX], 0    ; גבול שמאל
-    jle next_iter
-    dec [playerX]
+    jle next_iter_left
+    sub [playerX],4
+next_iter_left:
     jmp next_iter
 move_right: 
     cmp [playerX], 298  ; גבול ימין
-    jge next_iter
-    inc [playerX]
+    jge next_iter_right
+    add [playerX], 4
+next_iter_right:
     jmp next_iter
+game_loop_helper:
+	jmp game_loop
+move_up:    
+door1:
+	cmp [playerX], 40
+	jl door2
+	cmp [playerX], 70
+	jge door2
+	cmp [floor], 0
+	jne door2
+	inc [floor]
+	sub [playerY],55
+	call SaveBackground
+	jmp game_loop_helper
+move_down_helper:
+	jmp move_down
+door2:
+	cmp [playerX], 250
+	jl door3
+	cmp [playerX], 280
+	jge door3
+	cmp [floor], 1
+	jne door3
+	inc [floor]
+	sub [playerY],55
+	call SaveBackground
+	jmp game_loop_helper
+jump_to_exit_helper2:
+	jmp jump_to_exit
+door3:
+	cmp [playerX], 100
+	jl game_loop_helper
+	cmp [playerX], 130
+	jge game_loop_helper
+	cmp [floor], 2
+	jne game_loop_helper
+	inc [floor]
+	sub [playerY],55
+	call SaveBackground
+	jmp game_loop_helper
+
+jump_to_exit:
+jmp exit_game
+move_down_helper_to_game:
+	jmp game_loop_helper
+move_down:  
+	;cmp [playerX], 40
+	;jl move_down_helper_to_game
+	;cmp [playerX], 70
+	;jge move_down_helper_to_game
+	;add [playerY],55
+	;call SaveBackground
+	;jmp game_loop_helper
+	
+door4:
+	cmp [playerX], 40
+	jl door5
+	cmp [playerX], 70
+	jge door5
+	cmp [floor], 1
+	jne door5
+	dec [floor]
+	add [playerY],55
+	call SaveBackground
+	jmp game_loop_helper
+
+door5:
+	cmp [playerX], 250
+	jl door6
+	cmp [playerX], 280
+	jge door6
+	cmp [floor], 2
+	jne door6
+	dec [floor]
+	add [playerY],55
+	call SaveBackground
+	jmp game_loop_helper
+
+door6:
+	cmp [playerX], 100
+	jl jump_helper
+	cmp [playerX], 130
+	jge jump_helper
+	cmp [floor], 3
+	jne jump_helper
+	dec [floor]
+	add [playerY],55
+	call SaveBackground
+jump_helper:
+	jmp game_loop_helper
 
 next_iter:
 	call CheckCollision
     call SaveBackground ; שמור את הרקע במיקום החדש לפני הציור הבא
-    jmp game_loop
+    jmp game_loop_helper
 
 lost_game:
 	call Lost
 	call waitForEnter
 	jmp start
-
 
 win_game:
 	call Win
