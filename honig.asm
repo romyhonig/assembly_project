@@ -50,7 +50,7 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     backBuffer db 800 dup(0)
 
     ; --- משתנים עבור קובץ ה-BMP ---
-    currentFile db 'bg_2.bmp', 0
+    currentFile db 'bg_4.bmp', 0
 	startGameFile db 'start.bmp', 0
 	loseFile db 'lost.bmp',0 
 	winFile db 'win.bmp',0 
@@ -69,6 +69,7 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     hearts db 5
 	heartsMsg db 'HEARTS: $'
 	floor db 0
+	staircase_floor db 0
 	
 CODESEG
 
@@ -605,20 +606,32 @@ game_loop:
     cmp ah, 4Dh ; Right
     je move_right
     cmp ah, 01h ; Esc
-    je jump_to_exit_helper2
+    je jump_to_exit_helper
 	jmp next_iter
 
 jump_to_exit_helper:
 	jmp jump_to_exit_helper2
 
 
-move_left:  
+move_left:
+	cmp [staircase_floor], 0
+	je continue1
+	cmp [staircase_floor], 5
+	je continue1
+	jmp next_iter_left
+continue1:
     cmp [playerX], 0    ; גבול שמאל
     jle next_iter_left
     sub [playerX],4
 next_iter_left:
     jmp next_iter
-move_right: 
+move_right:
+	cmp [staircase_floor], 0
+	je continue2
+	cmp [staircase_floor], 5
+	je continue2
+	jmp next_iter_left
+continue2: 
     cmp [playerX], 298  ; גבול ימין
     jge next_iter_right
     add [playerX], 4
@@ -626,42 +639,53 @@ next_iter_right:
     jmp next_iter
 game_loop_helper:
 	jmp game_loop
+move_down_helper:
+	jmp move_down
 move_up:    
 door1:
-	cmp [playerX], 40
+	cmp [playerX], 50
 	jl door2
-	cmp [playerX], 70
+	cmp [playerX], 60
 	jge door2
 	cmp [floor], 0
 	jne door2
 	inc [floor]
-	sub [playerY],55
+	sub [playerY],50
 	call SaveBackground
 	jmp game_loop_helper
-move_down_helper:
-	jmp move_down
+
 door2:
-	cmp [playerX], 250
+	cmp [playerX], 165
 	jl door3
-	cmp [playerX], 280
+	cmp [playerX], 175
 	jge door3
 	cmp [floor], 1
 	jne door3
 	inc [floor]
-	sub [playerY],55
+	sub [playerY],50
 	call SaveBackground
 	jmp game_loop_helper
 jump_to_exit_helper2:
 	jmp jump_to_exit
 door3:
-	cmp [playerX], 100
+	cmp [playerX], 288
 	jl game_loop_helper
-	cmp [playerX], 130
+	cmp [playerX], 295
 	jge game_loop_helper
-	cmp [floor], 2
-	jne game_loop_helper
+	cmp [staircase_floor], 0
+	jl game_loop_helper
+	cmp [staircase_floor], 4
+	jg game_loop_helper
+	cmp [floor], 1
+	jle game_loop_helper
+in_staircase:
+	;inc [floor]
+	sub [playerY],10
+	inc [staircase_floor]
+	cmp [staircase_floor], 5
+	jne not_new_floor
 	inc [floor]
-	sub [playerY],55
+not_new_floor:
 	call SaveBackground
 	jmp game_loop_helper
 
@@ -670,47 +694,49 @@ jmp exit_game
 move_down_helper_to_game:
 	jmp game_loop_helper
 move_down:  
-	;cmp [playerX], 40
-	;jl move_down_helper_to_game
-	;cmp [playerX], 70
-	;jge move_down_helper_to_game
-	;add [playerY],55
-	;call SaveBackground
-	;jmp game_loop_helper
-	
 door4:
-	cmp [playerX], 40
+	cmp [playerX], 50
 	jl door5
-	cmp [playerX], 70
+	cmp [playerX], 60
 	jge door5
 	cmp [floor], 1
 	jne door5
 	dec [floor]
-	add [playerY],55
+	add [playerY],50
 	call SaveBackground
 	jmp game_loop_helper
 
 door5:
-	cmp [playerX], 250
+	cmp [playerX], 165
 	jl door6
-	cmp [playerX], 280
+	cmp [playerX], 175
 	jge door6
 	cmp [floor], 2
 	jne door6
 	dec [floor]
-	add [playerY],55
+	add [playerY],50
 	call SaveBackground
 	jmp game_loop_helper
 
 door6:
-	cmp [playerX], 100
+	cmp [playerX], 288
 	jl jump_helper
-	cmp [playerX], 130
+	cmp [playerX], 295
 	jge jump_helper
-	cmp [floor], 3
-	jne jump_helper
-	dec [floor]
-	add [playerY],55
+	cmp [staircase_floor], 0
+	je jump_helper
+	cmp [floor], 2
+	jl jump_helper
+	;cmp [floor], 2
+	;je go_down
+	
+go_down:
+	add [playerY],10
+	dec [staircase_floor] 
+	cmp [staircase_floor],0
+	jne not_new_floor2
+	mov [floor], 2
+not_new_floor2: 
 	call SaveBackground
 jump_helper:
 	jmp game_loop_helper
