@@ -88,20 +88,52 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	code_number_3 dw ?
 	code_number_4 dw ?
 	codecurrentFile db 'code.bmp', 0
+	rand_seed dw 12345
+
 	
 	
 CODESEG
 
 ;-----------------code Game------------------------------
+
+proc Delay
+    push ax bx cx dx
+    mov ah, 00h
+    int 1Ah             ; CX:DX = current ticks
+    add dx, 1           ; wait 3 ticks (~165ms)
+    mov bx, dx          ; BX = target tick
+delay_loop:
+    mov ah, 00h
+    int 1Ah
+    cmp dx, bx
+    jl delay_loop
+    pop dx cx bx ax
+    ret
+endp Delay
+
 proc GetRandom
     push cx dx
+
+    ; Mix the seed with the current tick for extra entropy
     mov ah, 00h
-    int 1Ah         ; DX = low word of tick count (changes constantly)
-    mov ax, dx
-    mov cx, 10
+    int 1Ah             ; DX = current tick
+
+    mov ax, [rand_seed]
+    add ax, dx          ; mix in the timer
+
+    ; LCG: seed = seed * 25173 + 13849  (classic 16-bit LCG constants)
+    mov cx, 25173
+    mul cx              ; AX = (seed * 25173) low word  (DX:AX, we discard DX)
+    add ax, 13849
+
+    mov [rand_seed], ax ; save new seed
+
+    ; Extract 0-9
     xor dx, dx
-    div cx          ; DX = AX mod 10  →  random 0–9
-    mov ax, dx      ; return value in AX
+    mov cx, 10
+    div cx              ; DX = AX mod 10
+
+    mov ax, dx
     pop dx cx
     ret
 endp GetRandom
@@ -109,10 +141,13 @@ endp GetRandom
 proc Get4Randoms
 	call GetRandom
 	mov [code_number_1], ax
+	call Delay
 	call GetRandom
 	mov [code_number_2], ax
+	call Delay
 	call GetRandom
 	mov [code_number_3], ax
+	call Delay
 	call GetRandom
 	mov [code_number_4], ax
 	ret
@@ -142,20 +177,20 @@ proc PrintCodeNumbers
     ; --- Number 1 at x=20, y=180 (col=2, row=22) ---
     mov ah, 02h
     mov bh, 0
-    mov dh, 22
-    mov dl, 2
+    mov dh, 17
+    mov dl, 5
     int 10h
     mov al, [byte ptr code_number_1]
     add al, '0'
     mov ah, 0Eh
-    mov bl, 15         
+    mov bl, 100 ;-----------------         
     int 10h
 
     ; --- Number 2 at x=60, y=180 (col=7, row=22) ---
     mov ah, 02h
     mov bh, 0
-    mov dh, 22
-    mov dl, 7
+    mov dh, 17
+    mov dl, 14
     int 10h
     mov al, [byte ptr code_number_2]
     add al, '0'
@@ -165,8 +200,8 @@ proc PrintCodeNumbers
     ; --- Number 3 at x=100, y=180 (col=12, row=22) ---
     mov ah, 02h
     mov bh, 0
-    mov dh, 22
-    mov dl, 12
+    mov dh, 17
+    mov dl, 24
     int 10h
     mov al, [byte ptr code_number_3]
     add al, '0'
@@ -176,8 +211,8 @@ proc PrintCodeNumbers
     ; --- Number 4 at x=180, y=180 (col=22, row=22) ---
     mov ah, 02h
     mov bh, 0
-    mov dh, 22
-    mov dl, 22
+    mov dh, 17
+    mov dl, 34
     int 10h
     mov al, [byte ptr code_number_4]
     add al, '0'
@@ -843,6 +878,7 @@ start:
 main_menu: 
 	mov [playerX], 282
 	mov [playerY], 170
+	call Get4Randoms
 	
 	call OpenStartFile ; פתיחת מסך ההתחלה
     call ReadHeader
@@ -916,12 +952,11 @@ game_loop:
     call RestoreBackground
 	
 	
-;-----------code----------------	
+;-----------code minigame----------------	
 	cmp [floor], 1
 	jne not_code_mini_game
 	cmp [playerX], 15
 	jg not_code_mini_game
-	call Get4Randoms
 	call show_code
 
 not_code_mini_game:	
