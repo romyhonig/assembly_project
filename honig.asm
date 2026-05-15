@@ -79,8 +79,8 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	
 	
 	;משתנים עבור משחק פצצות
-    bombscurrentFile db 'bg.bmp', 0
-	bombswinFile db 'win.bmp',0 
+    bombscurrentFile db 'bomb_bg.bmp', 0
+	bombswinFile db 'winbomb.bmp',0 
 	finished_bombs_game db 0
 	
 	;משתנים עבור משחק קוד
@@ -606,24 +606,16 @@ proc ProcessColor
     ; מקבלת AL כצבע, מחזירה DL=1 אם הייתה התנגשות שצריך להפסיק בגללה
     xor dl, dl          ; ברירת מחדל: אין התנגשות קריטית
     
-    cmp al, 249           ; פצצה (אדום)
-    je hit_red
-    cmp al, 164           ; קיר (אפור)
-    je hit_grey
-    cmp al, 250           ; סוללה (ירוק)
-    je hit_green
+    cmp al, 0           ; פצצה - שחור
+    je hit_bomb
+    cmp al, 255           ; סוללה - ירוק
+    jge hit_green
     ret
 
-hit_red:
+hit_bomb:
     mov dl, 1
 	mov [playerX], 260
 	mov [playerY], 150
-    ret
-
-hit_grey:
-	mov [playerX], 260
-	mov [playerY], 150
-    mov dl, 1
     ret
 
 hit_green:
@@ -673,22 +665,22 @@ bombs_game_loop:
     
 
 bombs_move_up:    
-    cmp [playerY], 5    ; גבול עליון
+    cmp [playerY], 0    ; גבול עליון
     jle bombs_next_iter
     sub [playerY], 3
     jmp bombs_next_iter
 bombs_move_down:  
-    cmp [playerY], 160  ; גבול תחתון (גובה מסך פחות גובה שחקן)
+    cmp [playerY], 169  ; גבול תחתון (גובה מסך פחות גובה שחקן)
     jge bombs_next_iter
     add [playerY], 3
     jmp bombs_next_iter
 bombs_move_left:  
-    cmp [playerX], 5    ; גבול שמאל
+    cmp [playerX], 0    ; גבול שמאל
     jle bombs_next_iter
     sub [playerX], 3
     jmp bombs_next_iter
 bombs_move_right: 
-    cmp [playerX], 290  ; גבול ימין
+    cmp [playerX], 297  ; גבול ימין
     jge bombs_next_iter
     add [playerX], 3
     jmp bombs_next_iter
@@ -700,8 +692,8 @@ bombs_next_iter:
 
 bombs_win_game:
 	mov [finished_bombs_game], 1
-	;call bombs_Win
-	;call waitForEnter
+	call bombs_Win
+	call waitForEnter
 	call OpenFile ; טעינת הרקע
     call ReadHeader
     call ReadPalette
