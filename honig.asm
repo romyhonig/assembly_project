@@ -1,6 +1,7 @@
 IDEAL
 MODEL small
 STACK 100h
+JUMPS ;מאפשר קפיצות גדולות יותר
 
 DATASEG
 
@@ -70,18 +71,460 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	heartsMsg db 'HEARTS: $'
 	floor db 0
 	staircase_floor db 0
+	;משתנים לטיימר
+	start_ticks DW ?        
+    current_sec DW 0          
+    time_str    DB 'Time: 00:00', '$'
+	
+	
+	;משתנים עבור משחק פצצות
+    bombscurrentFile db 'bg.bmp', 0
+	bombswinFile db 'win.bmp',0 
+	finished_bombs_game db 0
+	
+	;משתנים עבור משחק קוד
+	code_number_1 dw ?
+	code_number_2 dw ?
+	code_number_3 dw ?
+	code_number_4 dw ?
+	codecurrentFile db 'code.bmp', 0
+	
 	
 CODESEG
 
-proc minOneHeart 
-    dec [hearts]
-    ret 
-endp minOneHeart 
+;-----------------code Game------------------------------
+proc GetRandom
+    push cx dx
+    mov ah, 00h
+    int 1Ah         ; DX = low word of tick count (changes constantly)
+    mov ax, dx
+    mov cx, 10
+    xor dx, dx
+    div cx          ; DX = AX mod 10  →  random 0–9
+    mov ax, dx      ; return value in AX
+    pop dx cx
+    ret
+endp GetRandom
 
-proc minTwoHeart 
-    sub [hearts], 2
-    ret 
-endp minTwoHeart
+proc Get4Randoms
+	call GetRandom
+	mov [code_number_1], ax
+	call GetRandom
+	mov [code_number_2], ax
+	call GetRandom
+	mov [code_number_3], ax
+	call GetRandom
+	mov [code_number_4], ax
+	ret
+endp Get4Randoms
+
+proc show_code_screen
+	push ax dx 
+    mov ah, 3Dh
+    xor al, al
+    mov dx, offset codecurrentFile
+    int 21h
+    jc openerror_code1
+    mov [filehandle], ax
+    pop dx ax
+    ret
+openerror_code1:
+    mov dx, offset ErrorMsg
+    mov ah, 9h
+    int 21h
+    mov ax, 4c00h
+    int 21h
+endp show_code_screen
+
+proc PrintCodeNumbers
+    push ax bx dx
+
+    ; --- Number 1 at x=20, y=180 (col=2, row=22) ---
+    mov ah, 02h
+    mov bh, 0
+    mov dh, 22
+    mov dl, 2
+    int 10h
+    mov al, [byte ptr code_number_1]
+    add al, '0'
+    mov ah, 0Eh
+    mov bl, 15         
+    int 10h
+
+    ; --- Number 2 at x=60, y=180 (col=7, row=22) ---
+    mov ah, 02h
+    mov bh, 0
+    mov dh, 22
+    mov dl, 7
+    int 10h
+    mov al, [byte ptr code_number_2]
+    add al, '0'
+    mov ah, 0Eh
+    int 10h
+
+    ; --- Number 3 at x=100, y=180 (col=12, row=22) ---
+    mov ah, 02h
+    mov bh, 0
+    mov dh, 22
+    mov dl, 12
+    int 10h
+    mov al, [byte ptr code_number_3]
+    add al, '0'
+    mov ah, 0Eh
+    int 10h
+
+    ; --- Number 4 at x=180, y=180 (col=22, row=22) ---
+    mov ah, 02h
+    mov bh, 0
+    mov dh, 22
+    mov dl, 22
+    int 10h
+    mov al, [byte ptr code_number_4]
+    add al, '0'
+    mov ah, 0Eh
+    int 10h
+
+    pop dx bx ax
+    ret
+endp PrintCodeNumbers
+
+
+proc show_code
+    call show_code_screen   
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+
+    mov ah, 3Eh             ; close the file
+    mov bx, [filehandle]
+    int 21h
+
+	call PrintCodeNumbers
+	
+    call waitForEnter
+	
+	call OpenFile ; טעינת הרקע
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+	
+    add [playerX], 10
+	call SaveBackground
+    ret
+endp show_code
+	
+
+;-------------------Bombs Game------------------------------
+proc bombs_Win
+	call bombs_OpenWinFile
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+	ret
+endp bombs_Win
+
+proc bombs_OpenWinFile
+push ax dx 
+    mov ah, 3Dh
+    xor al, al
+    mov dx, offset bombswinFile
+    int 21h
+    jc openerror_bombs1
+    mov [filehandle], ax
+    pop dx ax
+    ret
+openerror_bombs1:
+    mov dx, offset ErrorMsg
+    mov ah, 9h
+    int 21h
+    mov ax, 4c00h
+    int 21h
+endp bombs_OpenWinFile
+
+proc OpenFile_bombs
+    push ax dx 
+    mov ah, 3Dh
+    xor al, al
+    mov dx, offset bombscurrentFile
+    int 21h
+    jc openerror_bombs
+    mov [filehandle], ax
+    pop dx ax
+    ret
+openerror_bombs:
+    mov dx, offset ErrorMsg
+    mov ah, 9h
+    int 21h
+    mov ax, 4c00h
+    int 21h
+endp OpenFile_bombs
+
+proc CheckCollision
+    push ax bx cx dx es
+    mov ax, 0A000h
+    mov es, ax
+
+    ; --- בדיקת פינה 1: שמאל-למעלה ---
+    mov ax, [playerY]
+    add ax, 2           ; מרווח ביטחון קטן מהקצה
+    mov dx, 320
+    mul dx
+    add ax, [playerX]
+    add ax, 2
+    mov bx, ax
+    mov al, [es:bx]
+    call ProcessColor   ; פונקציית עזר לבדיקת הצבע
+    cmp dl, 1           ; האם זוהתה התנגשות? (DL=1)
+    je finish_col
+
+    ; --- בדיקת פינה 2: ימין-למעלה ---
+    mov ax, [playerY]
+    add ax, 2
+    mov dx, 320
+    mul dx
+    add ax, [playerX]
+    add ax, [SPRITE_W]
+    sub ax, 2
+    mov bx, ax
+    mov al, [es:bx]
+    call ProcessColor
+    cmp dl, 1
+    je finish_col
+
+    ; --- בדיקת פינה 3: שמאל-למטה ---
+    mov ax, [playerY]
+    add ax, [SPRITE_H]
+    sub ax, 2
+    mov dx, 320
+    mul dx
+    add ax, [playerX]
+    add ax, 2
+    mov bx, ax
+    mov al, [es:bx]
+    call ProcessColor
+    cmp dl, 1
+    je finish_col
+
+    ; --- בדיקת פינה 4: ימין-למטה ---
+    mov ax, [playerY]
+    add ax, [SPRITE_H]
+    sub ax, 2
+    mov dx, 320
+    mul dx
+    add ax, [playerX]
+    add ax, [SPRITE_W]
+    sub ax, 2
+    mov bx, ax
+    mov al, [es:bx]
+    call ProcessColor
+
+finish_col:
+    pop es dx cx bx ax
+    ret
+endp CheckCollision
+
+; --- פונקציית עזר לבדיקת סוג הצבע ---
+proc ProcessColor
+    ; מקבלת AL כצבע, מחזירה DL=1 אם הייתה התנגשות שצריך להפסיק בגללה
+    xor dl, dl          ; ברירת מחדל: אין התנגשות קריטית
+    
+    cmp al, 249           ; פצצה (אדום)
+    je hit_red
+    cmp al, 164           ; קיר (אפור)
+    je hit_grey
+    cmp al, 250           ; סוללה (ירוק)
+    je hit_green
+    ret
+
+hit_red:
+    mov dl, 1
+	mov [playerX], 260
+	mov [playerY], 150
+    ret
+
+hit_grey:
+	mov [playerX], 260
+	mov [playerY], 150
+    mov dl, 1
+    ret
+
+hit_green:
+    jmp bombs_win_game
+	ret
+endp ProcessColor
+	
+proc bombs_mini_game	
+bombs_main_menu: 
+	mov [playerX], 260
+	mov [playerY], 150
+
+bombs_start_game: 
+    call OpenFile_bombs ; טעינת הרקע
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+
+    ; שמירה ראשונית של הרקע לפני תחילת הלולאה
+    call SaveBackground
+
+bombs_game_loop:
+    ; 1. צייר שחקן
+    call DrawPlayer
+
+    ; 2. חכה למקש
+    mov ah, 00h
+    int 16h
+    ; 3. מחק את השחקן על ידי שחזור הרקע הישן
+    call RestoreBackground
+
+    ; 4. עדכן מיקום
+    cmp ah, 48h ; Up
+    je bombs_move_up
+    cmp ah, 50h ; Down
+    je bombs_move_down
+    cmp ah, 4Bh ; Left
+    je bombs_move_left
+    cmp ah, 4Dh ; Right
+    je bombs_move_right
+	jmp bombs_next_iter
+    
+
+bombs_move_up:    
+    cmp [playerY], 5    ; גבול עליון
+    jle bombs_next_iter
+    sub [playerY], 3
+    jmp bombs_next_iter
+bombs_move_down:  
+    cmp [playerY], 160  ; גבול תחתון (גובה מסך פחות גובה שחקן)
+    jge bombs_next_iter
+    add [playerY], 3
+    jmp bombs_next_iter
+bombs_move_left:  
+    cmp [playerX], 5    ; גבול שמאל
+    jle bombs_next_iter
+    sub [playerX], 3
+    jmp bombs_next_iter
+bombs_move_right: 
+    cmp [playerX], 290  ; גבול ימין
+    jge bombs_next_iter
+    add [playerX], 3
+    jmp bombs_next_iter
+
+bombs_next_iter:
+	call CheckCollision
+    call SaveBackground ; שמור את הרקע במיקום החדש לפני הציור הבא
+    jmp bombs_game_loop
+
+bombs_win_game:
+	mov [finished_bombs_game], 1
+	;call bombs_Win
+	;call waitForEnter
+	call OpenFile ; טעינת הרקע
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+	
+
+    ; שמירה ראשונית של הרקע לפני תחילת הלולאה
+	mov [playerX], 227
+	mov [playerY], 70
+	call SaveBackground
+
+	
+	jmp game_loop
+endp bombs_mini_game
+
+;--------------------Main Game--------------------------------
+
+proc UpdateTimer
+    push ax
+    push bx
+    push cx
+    push dx
+
+    ; קריאת השעון הנוכחי
+    mov ah, 00h
+    int 1Ah               
+	
+    ; חישוב ההפרש (כמה זמן עבר מתחילת המשחק)
+    sub dx, [start_ticks]
+
+  ; המרה לשניות: 
+    mov ax, dx
+    mov dx, 0
+    mov cx, 18
+    div cx                  ;  מכיל עכשיו את השניות AX
+mov dx, 0
+    mov cx, 60
+    div cx                  ; AX = דקות, DX = שניות
+
+    ; נשמור רגע את השניות בצד (בתוך ה-Stack) כדי לטפל קודם בדקות
+    push dx                 
+
+    ; --- טיפול בדקות (נמצאות ב-AX) ---
+    mov cx, 10
+    mov dx, 0
+    div cx                  ; AX = עשרות דקות, DX = אחדות דקות
+    
+    add dl, '0'
+    mov [time_str + 7], dl  ; אחדות דקות (הספרה השנייה של הדקות)
+    
+    add al, '0'
+    mov [time_str + 6], al  ; עשרות דקות (הספרה הראשונה של הדקות)
+
+    ; --- טיפול בשניות (נחזיר אותן מה-Stack ל-AX) ---
+    pop ax                  ; AX מכיל עכשיו את השניות
+    mov dx, 0
+    div cx                  ; AX = עשרות שניות, DX = אחדות שניות
+
+    add dl, '0'
+    mov [time_str + 10], dl ; אחדות שניות
+
+    add al, '0'
+    mov [time_str + 9], al  ; עשרות שניות
+
+    pop dx cx bx ax
+    ret
+endp UpdateTimer
+
+proc DisplayTimer
+    push ax bx cx dx es
+
+    mov ax, @data
+    mov es, ax
+    mov bp, offset time_str 
+
+    mov dh, 1               ; שורה 1
+    mov dl, 25              ; עמודה 25
+    mov cx, 11              ;הגדרת אורך המחרוזת
+    mov bh, 0               ; דף מסך 0
+    mov bl, 220              ; נבחר 15 עבור צבע לבן
+    
+    mov al, 01h           
+    mov ah, 13h             ; הדפסת מחרוזת גרפית עם צבע
+    int 10h                 ; הפעלת הפסיקה
+
+    pop es dx cx bx ax
+    ret
+endp DisplayTimer
+
 
 proc Lost
 	call OpenLoseFile
@@ -324,32 +767,6 @@ endp RestoreBackground
 
 
 
-proc ShowHearts
-    push ax bx cx dx
-    
-    ; 1. קביעת מיקום הסמן (שורה 0, עמודה 30)
-    mov ah, 02h
-    mov bh, 0    ; מספר דף
-    mov dh, 2    ; שורה
-    mov dl, 28   ; עמודה (זזנו קצת שמאלה כדי שיהיה מקום למילה)
-    int 10h
-    
-    ; 2. הדפסת המילה "HEARTS: "
-    mov dx, offset heartsMsg
-    mov ah, 09h
-    int 21h
-    
-    ; 3. הדפסת המספר עצמו
-    mov al, [hearts]
-    add al, 48   ; המרה ל-ASCII
-    mov ah, 0Eh  ; פונקציית צייר תו
-    mov bl, 15   ; צבע לבן
-    int 10h
-    
-    pop dx cx bx ax
-    ret
-endp ShowHearts
-
 proc DrawPlayer
     push ax bx cx dx si di
     lea si, [player_sprite]
@@ -395,110 +812,6 @@ skip_pix:
 endp DrawPlayer
 
 
-
-proc CheckCollision
-    push ax bx cx dx es
-    mov ax, 0A000h
-    mov es, ax
-
-    ; --- בדיקת פינה 1: שמאל-למעלה ---
-    mov ax, [playerY]
-    add ax, 2           ; מרווח ביטחון קטן מהקצה
-    mov dx, 320
-    mul dx
-    add ax, [playerX]
-    add ax, 2
-    mov bx, ax
-    mov al, [es:bx]
-    call ProcessColor   ; פונקציית עזר לבדיקת הצבע
-    cmp dl, 1           ; האם זוהתה התנגשות? (DL=1)
-    je finish_col
-
-    ; --- בדיקת פינה 2: ימין-למעלה ---
-    mov ax, [playerY]
-    add ax, 2
-    mov dx, 320
-    mul dx
-    add ax, [playerX]
-    add ax, [SPRITE_W]
-    sub ax, 2
-    mov bx, ax
-    mov al, [es:bx]
-    call ProcessColor
-    cmp dl, 1
-    je finish_col
-
-    ; --- בדיקת פינה 3: שמאל-למטה ---
-    mov ax, [playerY]
-    add ax, [SPRITE_H]
-    sub ax, 2
-    mov dx, 320
-    mul dx
-    add ax, [playerX]
-    add ax, 2
-    mov bx, ax
-    mov al, [es:bx]
-    call ProcessColor
-    cmp dl, 1
-    je finish_col
-
-    ; --- בדיקת פינה 4: ימין-למטה ---
-    mov ax, [playerY]
-    add ax, [SPRITE_H]
-    sub ax, 2
-    mov dx, 320
-    mul dx
-    add ax, [playerX]
-    add ax, [SPRITE_W]
-    sub ax, 2
-    mov bx, ax
-    mov al, [es:bx]
-    call ProcessColor
-
-finish_col:
-    pop es dx cx bx ax
-    ret
-endp CheckCollision
-
-; --- פונקציית עזר לבדיקת סוג הצבע ---
-proc ProcessColor
-    ; מקבלת AL כצבע, מחזירה DL=1 אם הייתה התנגשות שצריך להפסיק בגללה
-    xor dl, dl          ; ברירת מחדל: אין התנגשות קריטית
-    
-    cmp al, 249           ; פצצה (אדום)
-    je hit_red
-    ;cmp al, 250           ; קיר (אפור) 164
-    ;jle hit_grey
-    cmp al, 250           ; סוללה (ירוק)
-    je hit_green
-    ret
-
-hit_red:
-    call minTwoHeart
-    mov dl, 1
-	mov [playerX], 260
-	mov [playerY], 150
-    cmp [hearts], 0
-    jle jmp_to_lost_game_collision
-    ret
-
-hit_grey:
-    call minOneHeart
-	mov [playerX], 20 ;282
-	mov [playerY], 167 ;167
-    mov dl, 1
-    cmp [hearts], 0
-    jle jmp_to_lost_game_collision
-    ret
-
-hit_green:
-    jmp win_game
-
-jmp_to_lost_game_collision:
-    jmp lost_game
-endp ProcessColor
-
-
 proc waitForEnter
 wait_for_enter: 
 	mov ah, 00h
@@ -528,7 +841,6 @@ start:
 	
 	
 main_menu: 
-	mov [hearts], 5 ;לוודא שיש 5 לבבות בכל הרצה
 	mov [playerX], 282
 	mov [playerY], 170
 	
@@ -579,11 +891,18 @@ start_game:
 
     ; שמירה ראשונית של הרקע לפני תחילת הלולאה
     call SaveBackground
+	
+	mov ah, 00h              
+    int 1Ah                
+    mov [start_ticks], dx     
 
 game_loop:
     ; 1. צייר שחקן
     call DrawPlayer
-	call ShowHearts
+	
+	;טיימר
+	call UpdateTimer
+    call DisplayTimer
 
     ; 2. חכה למקש
     mov ah, 00h
@@ -595,7 +914,32 @@ game_loop:
 
     ; 3. מחק את השחקן על ידי שחזור הרקע הישן
     call RestoreBackground
+	
+	
+;-----------code----------------	
+	cmp [floor], 1
+	jne not_code_mini_game
+	cmp [playerX], 15
+	jg not_code_mini_game
+	call Get4Randoms
+	call show_code
 
+not_code_mini_game:	
+;-----------bombs----------------	
+	cmp [finished_bombs_game], 1
+	je not_bombs_mini_game
+	cmp [floor], 2
+	jne not_bombs_mini_game
+	cmp [playerX], 227
+	jl not_bombs_mini_game
+	cmp [playerX], 240
+	jg  not_bombs_mini_game
+	call bombs_mini_game
+	jmp start_game
+;---------------------------------
+	
+	
+not_bombs_mini_game:
     ; 4. עדכן מיקום
     cmp ah, 48h ; Up
     je move_up
@@ -742,7 +1086,6 @@ jump_helper:
 	jmp game_loop_helper
 
 next_iter:
-	call CheckCollision
     call SaveBackground ; שמור את הרקע במיקום החדש לפני הציור הבא
     jmp game_loop_helper
 
