@@ -75,6 +75,7 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	start_ticks DW ?        
     current_sec DW 0          
     time_str    DB 'Time: 00:00', '$'
+	won_game db 0
 	
 	
 	;משתנים עבור משחק פצצות
@@ -87,9 +88,15 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	code_number_2 dw ?
 	code_number_3 dw ?
 	code_number_4 dw ?
-	codecurrentFile db 'code.bmp', 0
-	rand_seed dw 12345
+	user_code_number_1 dw ?
+	user_code_number_2 dw ?
+	user_code_number_3 dw ?
+	user_code_number_4 dw ?
 
+	codecurrentFile db 'code.bmp', 0
+	entercodecurrentFile db 'code2.bmp', 0
+	rand_seed dw 12345
+	code_input_count db 0 ;לספור כמה מספרים המשתמש הכניס. הוא צריך להכניס 4 בשביל הסיסמא
 	
 	
 CODESEG
@@ -253,7 +260,236 @@ proc show_code
 	call SaveBackground
     ret
 endp show_code
+
+
+;-----------the second part of the code minigame------------
+
+proc show_enter_code_screen
+	push ax dx 
+    mov ah, 3Dh
+    xor al, al
+    mov dx, offset entercodecurrentFile
+    int 21h
+    jc openerror_code2
+    mov [filehandle], ax
+    pop dx ax
+    ret
+openerror_code2:
+    mov dx, offset ErrorMsg
+    mov ah, 9h
+    int 21h
+    mov ax, 4c00h
+    int 21h
+endp show_enter_code_screen
+
+proc check_if_user_got_password_right
+	mov ax, [code_number_1]
+	cmp ax, [user_code_number_1]
+	jne worng_password
+	mov ax, [code_number_2]
+	cmp ax, [user_code_number_2]
+	jne worng_password
+	mov ax, [code_number_3]
+	cmp ax, [user_code_number_3]
+	jne worng_password
+	mov ax, [code_number_4]
+	cmp ax, [user_code_number_4]
+	jne worng_password
+	mov [won_game], 1  ;לשים את הערך 1 במשתנה שקובע אם המשחק הסתיים בהצלחה
 	
+worng_password:
+	ret
+endp check_if_user_got_password_right
+
+
+; Draws the 4 input slots. Filled slots show the digit, empty slots show '_'
+proc DisplayInputDigits
+    push ax bx dx
+
+    ; --- Slot 1 ---
+    mov ah, 02h
+    mov bh, 0
+    mov dh, 21          ; row
+    mov dl, 5          ; column 
+    int 10h
+    cmp [code_input_count], 1
+    jl slot1_empty
+    mov ax, [user_code_number_1]
+    add al, '0'
+    jmp slot1_print
+slot1_empty:
+    mov al, '_'
+slot1_print:
+    mov ah, 0Eh
+    mov bl, 0Fh
+    mov bh, 0
+    int 10h
+
+    ; --- Slot 2 ---
+    mov ah, 02h
+    mov bh, 0
+    mov dh, 21
+    mov dl, 14          ; 2 columns right of slot 1
+    int 10h
+    cmp [code_input_count], 2
+    jl slot2_empty
+    mov ax, [user_code_number_2]
+    add al, '0'
+    jmp slot2_print
+slot2_empty:
+    mov al, '_'
+slot2_print:
+    mov ah, 0Eh
+    mov bl, 0Fh
+    mov bh, 0
+    int 10h
+
+    ; --- Slot 3 ---
+    mov ah, 02h
+    mov bh, 0
+    mov dh, 21
+    mov dl, 24
+    int 10h
+    cmp [code_input_count], 3
+    jl slot3_empty
+    mov ax, [user_code_number_3]
+    add al, '0'
+    jmp slot3_print
+slot3_empty:
+    mov al, '_'
+slot3_print:
+    mov ah, 0Eh
+    mov bl, 0Fh
+    mov bh, 0
+    int 10h
+
+    ; --- Slot 4 ---
+    mov ah, 02h
+    mov bh, 0
+    mov dh, 21
+    mov dl, 34
+    int 10h
+    cmp [code_input_count], 4
+    jl slot4_empty
+    mov ax, [user_code_number_4]
+    add al, '0'
+    jmp slot4_print
+slot4_empty:
+    mov al, '_'
+slot4_print:
+    mov ah, 0Eh
+    mov bl, 0Fh
+    mov bh, 0
+    int 10h
+
+    pop dx bx ax
+    ret
+endp DisplayInputDigits
+
+
+proc EnterPassword
+    push ax bx dx
+
+    ; --- Show the enter-code BMP ---
+	mov [playerX], 42
+    call show_enter_code_screen
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+
+    ; --- Reset all input state ---
+    mov [code_input_count], 0
+    mov [user_code_number_1], 0
+    mov [user_code_number_2], 0
+    mov [user_code_number_3], 0
+    mov [user_code_number_4], 0
+
+    ; --- Draw the initial empty slots ---
+    call DisplayInputDigits
+
+enter_key_loop:
+    mov ah, 00h         ; blocking read — fine here, no game running behind this
+    int 16h
+    ; AH = scan code, AL = ASCII character
+
+    ; Enter (scan 1Ch): attempt to submit
+    cmp ah, 1Ch
+    je enter_submit
+
+    ; Backspace (scan 0Eh): delete last digit
+    cmp ah, 0Eh
+    je enter_backspace
+
+    ; Ignore anything that isn't an ASCII digit 0-9
+    cmp al, '0'
+    jl enter_key_loop
+    cmp al, '9'
+    jg enter_key_loop
+
+    ; Ignore if already 4 digits entered
+    cmp [code_input_count], 4
+    jge enter_key_loop
+
+    ; Store the digit (as a numeric value 0-9) into the right slot
+    sub al, '0'
+	xor ah, ah
+    xor bx, bx
+    mov bl, [code_input_count]
+
+    cmp bl, 0
+    jne try_slot2
+    mov [user_code_number_1], ax
+    jmp digit_stored
+try_slot2:
+    cmp bl, 1
+    jne try_slot3
+    mov [user_code_number_2], ax
+    jmp digit_stored
+try_slot3:
+    cmp bl, 2
+    jne try_slot4
+    mov [user_code_number_3], ax
+    jmp digit_stored
+try_slot4:
+    mov [user_code_number_4], ax
+
+digit_stored:
+    inc [code_input_count]
+    call DisplayInputDigits
+    jmp enter_key_loop
+
+enter_backspace:
+    cmp [code_input_count], 0
+    je enter_key_loop       ; nothing to delete
+    dec [code_input_count]
+    call DisplayInputDigits
+    jmp enter_key_loop
+
+enter_submit:
+    cmp [code_input_count], 4
+    jne enter_key_loop      ; must enter all 4 digits before submitting
+
+    call check_if_user_got_password_right
+
+    ; --- Reload the game background and return ---
+    call OpenFile
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+    call SaveBackground
+
+    pop dx bx ax
+    ret
+endp EnterPassword
+
 
 ;-------------------Bombs Game------------------------------
 proc bombs_Win
@@ -963,7 +1199,17 @@ key_available:
     call RestoreBackground
 	
 	
-;-----------code minigame----------------	
+;-----------code minigame----------------
+	cmp [floor], 3
+	jne not_enter_code
+	cmp [playerX], 28
+	jg not_enter_code
+	call EnterPassword
+	cmp [won_game], 1
+	jne not_enter_code
+	jmp win_game
+	
+not_enter_code:	
 	cmp [floor], 1
 	jne not_code_mini_game
 	cmp [playerX], 15
