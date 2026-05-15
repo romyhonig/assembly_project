@@ -937,11 +937,22 @@ game_loop:
     call DrawPlayer
 	
 	;טיימר
-	call UpdateTimer
-    call DisplayTimer
+	;call UpdateTimer
+    ;call DisplayTimer
 
     ; 2. חכה למקש
-    mov ah, 00h
+    ;mov ah, 00h
+    ;int 16h
+wait_for_key:
+    mov ah, 01h            ; check if a key is available (non-blocking)
+    int 16h
+    jnz key_available      ; ZF=0 means a key is waiting — go read it
+    call UpdateTimer       ; no key yet — update the timer
+    call DisplayTimer
+    jmp wait_for_key       ; keep polling
+
+key_available:
+    mov ah, 00h            ; now consume the key from the buffer
     int 16h
 	
 	; בדיקה האם המשתמש לחץ על כפתור היציאה
