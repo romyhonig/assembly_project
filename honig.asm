@@ -75,8 +75,16 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	start_ticks DW ?        
     current_sec DW 0          
     time_str    DB 'Time: 00:00', '$'
+	time_up db 0
 	won_game db 0
 	
+	;משתנים עבור משחק הפסנתר 
+	pianocurrentFile db 'piano2.bmp', 0
+	finished_piano_game db 0
+	piano_sequence    db 1Eh, 1Eh, 1Fh, 1Eh, 21h, 20h, 1Eh, 1Eh  ; A A S A F D A A
+	piano_seq_len     db 8
+	piano_seq_index   db 0
+	pianowinFile      db 'piano_win.bmp', 0
 	
 	;משתנים עבור משחק פצצות
     bombscurrentFile db 'bomb_bg.bmp', 0
@@ -100,6 +108,321 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	
 	
 CODESEG
+;-----------------Piano Game------------------------------
+
+proc PlayNote
+    ; AX = divisor (1193180 / frequency)
+    push ax
+
+    ; Set PIT counter 2 to the frequency
+    mov al, 0B6h
+    out 43h, al         ; PIT mode: square wave, counter 2
+
+    pop ax
+    out 42h, al         ; low byte of divisor
+    mov al, ah
+    out 42h, al         ; high byte of divisor
+
+    ; Enable PC speaker
+    in al, 61h
+    or al, 03h
+    out 61h, al
+    ret
+endp PlayNote
+
+proc StopNote
+    ; Disable PC speaker
+    in al, 61h
+    and al, 0FCh
+    out 61h, al
+    ret
+endp StopNote
+
+proc OpenPianoFile
+    push ax dx
+    mov ah, 3Dh
+    xor al, al
+    mov dx, offset pianocurrentFile
+    int 21h
+    jc openerror_piano
+    mov [filehandle], ax
+    pop dx ax
+    ret
+openerror_piano:
+    mov dx, offset ErrorMsg
+    mov ah, 9h
+    int 21h
+    mov ax, 4c00h
+    int 21h
+endp OpenPianoFile
+
+proc OpenPianoWinFile
+    push ax dx
+    mov ah, 3Dh
+    xor al, al
+    mov dx, offset pianowinFile
+    int 21h
+    jc openerror_pianowin
+    mov [filehandle], ax
+    pop dx ax
+    ret
+openerror_pianowin:
+    mov dx, offset ErrorMsg
+    mov ah, 9h
+    int 21h
+    mov ax, 4c00h
+    int 21h
+endp OpenPianoWinFile
+
+proc CheckPianoSequence
+    ; AH = scan code של המקש שנלחץ
+    push ax bx si
+
+    xor bx, bx
+    mov bl, [piano_seq_index]
+
+    ; האם המקש תואם לצפוי ברצף?
+    mov si, offset piano_sequence
+    add si, bx
+    cmp ah, [si]
+    jne wrong_key
+
+    ; מקש נכון - קדם את האינדקס
+    inc [piano_seq_index]
+
+    ; האם הרצף הושלם?
+    mov al, [piano_seq_index]
+    cmp al, [piano_seq_len]
+    jne check_done
+    
+    ; ניצחון!
+    call StopNote
+    call OpenPianoWinFile
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+    call waitForEnter
+
+    mov [finished_piano_game], 1
+    call OpenFile
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+    call SaveBackground
+    pop si bx ax
+    ret
+
+wrong_key:
+    ; מקש שגוי - מאפס את הרצף מההתחלה
+    mov [piano_seq_index], 0
+
+check_done:
+    pop si bx ax
+    ret
+endp CheckPianoSequence
+
+proc piano_mini_game
+    call OpenPianoFile
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+
+piano_loop:
+    mov ah, 00h
+    int 16h
+
+    cmp ah, 01h         ; ESC
+    je piano_exit
+
+    ; נגן את הצליל המתאים
+    cmp ah, 1Eh         ; A = Do
+    jne p_try_s
+    mov ax, 4554
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_s:
+    cmp ah, 1Fh         ; S = Re
+    jne p_try_d
+    mov ax, 4059
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_d:
+    cmp ah, 20h         ; D = Mi
+    jne p_try_f
+    mov ax, 3616
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_f:
+    cmp ah, 21h         ; F = Fa
+    jne p_try_g
+    mov ax, 3419
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_g:
+    cmp ah, 22h         ; G = Sol
+    jne p_try_h
+    mov ax, 3043
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_h:
+    cmp ah, 23h         ; H = La
+    jne p_try_j
+    mov ax, 2712
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_j:
+    cmp ah, 24h         ; J = Si
+    jne p_try_w
+    mov ax, 2415
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_w:
+    cmp ah, 11h         ; W = Do#
+    jne p_try_e
+    mov ax, 4306
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_e:
+    cmp ah, 12h         ; E = Re#
+    jne p_try_r
+    mov ax, 3834
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_r:
+    cmp ah, 13h         ; R = Fa#
+    jne p_try_t
+    mov ax, 3224
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_t:
+    cmp ah, 14h         ; T = Sol#
+    jne p_try_y
+    mov ax, 2874
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+p_try_y:
+    cmp ah, 15h         ; Y = La#
+    jne piano_loop
+    mov ax, 2560
+    call PlayNote
+    call piano_wait
+    call StopNote
+    call CheckPianoSequence
+    cmp [finished_piano_game], 1
+    je piano_done
+    jmp piano_loop
+
+piano_done:
+    ret
+
+piano_exit:
+    call StopNote
+    call OpenFile
+    call ReadHeader
+    call ReadPalette
+    call CopyPal
+    call CopyBitmap
+    mov ah, 3Eh
+    mov bx, [filehandle]
+    int 21h
+    call SaveBackground
+    ret
+endp piano_mini_game
+
+proc piano_wait
+    push ax bx cx dx
+    mov ah, 00h
+    int 1Ah
+    add dx, 4
+    mov bx, dx
+piano_wait_loop:
+    mov ah, 00h
+    int 1Ah
+    cmp dx, bx
+    jl piano_wait_loop
+    pop dx cx bx ax
+    ret
+endp piano_wait
+
+;-------------------------------------------------------- 
 
 ;-----------------code Game------------------------------
 
@@ -734,11 +1057,16 @@ proc UpdateTimer
     mov dx, 0
     mov cx, 18
     div cx                  ;  מכיל עכשיו את השניות AX
-mov dx, 0
+	mov dx, 0
     mov cx, 60
     div cx                  ; AX = דקות, DX = שניות
+	
+	cmp ax, 3
+    jl timer_not_up
+    mov [time_up], 1
+timer_not_up:
 
-    ; נשמור רגע את השניות בצד (בתוך ה-Stack) כדי לטפל קודם בדקות
+    ; נשמור רגע את הות בצד (בתוך ה-Stack) כדי לטפל קודם בדקות
     push dx                 
 
     ; --- טיפול בדקות (נמצאות ב-AX) ---
@@ -1143,6 +1471,17 @@ wait_for_rules_input:
 	call waitForEnter ;לחיצת enter לתחילת משחק 
 	
 start_game: 
+	mov [time_up], 0
+    mov [won_game], 0
+    mov [finished_piano_game], 0
+    mov [piano_seq_index], 0
+    mov [finished_bombs_game], 0
+    mov [floor], 0
+    mov [staircase_floor], 0
+    mov [playerX], 282
+    mov [playerY], 170
+    call Get4Randoms
+	
     call OpenFile ; טעינת הרקע
     call ReadHeader
     call ReadPalette
@@ -1177,7 +1516,13 @@ wait_for_key:
     jnz key_available      ; ZF=0 means a key is waiting — go read it
     call UpdateTimer       ; no key yet — update the timer
     call DisplayTimer
-    jmp wait_for_key       ; keep polling
+; האם עברו 3 דקות?
+	 cmp [time_up], 1
+    je time_over_jump
+    jmp wait_for_key
+time_over_jump:
+    jmp lost_game
+
 
 key_available:
     mov ah, 00h            ; now consume the key from the buffer
@@ -1189,6 +1534,19 @@ key_available:
 
     ; 3. מחק את השחקן על ידי שחזור הרקע הישן
     call RestoreBackground
+
+;-----------Piano game---------------------
+	cmp [finished_piano_game], 1
+    je not_piano_mini_game
+    cmp [floor], 0         
+    jne not_piano_mini_game
+    cmp [playerX], 200      
+    jl not_piano_mini_game
+    cmp [playerX], 220       
+    jg not_piano_mini_game
+    call piano_mini_game
+	jmp next_iter
+not_piano_mini_game:
 	
 	
 ;-----------code minigame----------------
