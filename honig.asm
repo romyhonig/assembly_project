@@ -51,7 +51,7 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     backBuffer db 800 dup(0)
 
     ; --- משתנים עבור קובץ ה-BMP ---
-    currentFile db 'bg_4.bmp', 0
+    currentFile db 'bg.bmp', 0
 	startGameFile db 'start.bmp', 0
 	loseFile db 'lost.bmp',0 
 	winFile db 'win.bmp',0 
