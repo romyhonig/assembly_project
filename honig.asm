@@ -84,7 +84,7 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	piano_sequence    db 1Eh, 1Eh, 1Fh, 1Eh, 21h, 20h, 1Eh, 1Eh  ; A A S A F D A A
 	piano_seq_len     db 8
 	piano_seq_index   db 0
-	pianowinFile      db 'piano_win.bmp', 0
+	pianowinFile      db 'pianowin.bmp', 0
 	
 	;משתנים עבור משחק פצצות
     bombscurrentFile db 'bomb_bg.bmp', 0
@@ -243,16 +243,17 @@ piano_loop:
     mov ah, 00h
     int 16h
 
-    cmp ah, 01h         ; ESC
+    cmp ah, 01h
     je piano_exit
 
-    ; נגן את הצליל המתאים
     cmp ah, 1Eh         ; A = Do
     jne p_try_s
+    push ax
     mov ax, 4554
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -261,10 +262,12 @@ piano_loop:
 p_try_s:
     cmp ah, 1Fh         ; S = Re
     jne p_try_d
+    push ax
     mov ax, 4059
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -273,10 +276,12 @@ p_try_s:
 p_try_d:
     cmp ah, 20h         ; D = Mi
     jne p_try_f
+    push ax
     mov ax, 3616
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -285,10 +290,12 @@ p_try_d:
 p_try_f:
     cmp ah, 21h         ; F = Fa
     jne p_try_g
+    push ax
     mov ax, 3419
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -297,10 +304,12 @@ p_try_f:
 p_try_g:
     cmp ah, 22h         ; G = Sol
     jne p_try_h
+    push ax
     mov ax, 3043
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -309,10 +318,12 @@ p_try_g:
 p_try_h:
     cmp ah, 23h         ; H = La
     jne p_try_j
+    push ax
     mov ax, 2712
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -321,10 +332,12 @@ p_try_h:
 p_try_j:
     cmp ah, 24h         ; J = Si
     jne p_try_w
+    push ax
     mov ax, 2415
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -333,10 +346,12 @@ p_try_j:
 p_try_w:
     cmp ah, 11h         ; W = Do#
     jne p_try_e
+    push ax
     mov ax, 4306
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -345,10 +360,12 @@ p_try_w:
 p_try_e:
     cmp ah, 12h         ; E = Re#
     jne p_try_r
+    push ax
     mov ax, 3834
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -357,10 +374,12 @@ p_try_e:
 p_try_r:
     cmp ah, 13h         ; R = Fa#
     jne p_try_t
+    push ax
     mov ax, 3224
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -369,10 +388,12 @@ p_try_r:
 p_try_t:
     cmp ah, 14h         ; T = Sol#
     jne p_try_y
+    push ax
     mov ax, 2874
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
@@ -381,10 +402,12 @@ p_try_t:
 p_try_y:
     cmp ah, 15h         ; Y = La#
     jne piano_loop
+    push ax
     mov ax, 2560
     call PlayNote
     call piano_wait
     call StopNote
+    pop ax
     call CheckPianoSequence
     cmp [finished_piano_game], 1
     je piano_done
