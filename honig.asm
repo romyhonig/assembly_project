@@ -5,10 +5,10 @@ JUMPS ;מאפשר קפיצות גדולות יותר
 
 DATASEG
 
-playerX dw ?
-playerY dw ?
-SPRITE_W dw 24
-SPRITE_H dw 28
+playerX dw ?  ;מיקום השחקן על ציר האיקס
+playerY dw ?  ;מיקום השחקן על ציר הוואי
+SPRITE_W dw 24  ; רוחב הדמות
+SPRITE_H dw 28  ;אורך הדמות
 
 player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h,  00h, 00h, 00h, 00h
 			  db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 0Fh, 0Fh, 00h, 00h, 00h, 00h, 00h, 00h, 00h,  00h, 00h, 00h, 00h
@@ -47,36 +47,34 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
     
 
 
-    ; מערך לשמירת הפיקסלים של הרקע (5*5=25 פיקסלים)
+    ; מערך לשמירת הפיקסלים של הרקע 
     backBuffer db 800 dup(0)
 
     ; --- משתנים עבור קובץ ה-BMP ---
-    currentFile db 'bg.bmp', 0
-	startGameFile db 'start.bmp', 0
-	loseFile db 'lost.bmp',0 
-	winFile db 'win.bmp',0 
-	rulesFile db 'rules.bmp', 0 
-    filehandle  dw ?
-    Header      db 54 dup (0)
-    Palette     db 400h dup (0)
-    ScrLine     db 320 dup (0)
+    currentFile db 'bg.bmp', 0  ;מסך ראשי
+	startGameFile db 'start.bmp', 0  ;מסך פתיחה
+	loseFile db 'lost.bmp',0 ;מסך הפסד
+	winFile db 'win.bmp',0  ;מסך נצחון
+	rulesFile db 'rules.bmp', 0  ;מסך חוקים
+    filehandle  dw ?  ;משתנה עזר לפתיחת הקבצים
+    Header      db 54 dup (0) ;משתנה עזר לפתיחת הקבצים
+    Palette     db 400h dup (0) ;משתנה עזר לפתיחת הקבצים
+    ScrLine     db 320 dup (0) ;משתנה עזר לפתיחת הקבצים
     
-    picWidth    dw 320
+    picWidth    dw 320 
     picHigh     dw 200
     leftGap     dw 0
     topGap      dw 0
-    ErrorMsg    db 'Error opening file', '$'
+    ErrorMsg    db 'Error opening file', '$' ;הודעת שגיאה לפתיחה לא מוצלחת
 
-    hearts db 5
-	heartsMsg db 'HEARTS: $'
-	floor db 0
-	staircase_floor db 0
+	floor db 0 ;באיזו קומה נמצא השחקן (0-3)
+	staircase_floor db 0 ;באיזה שלב השחקן על גבי הסולם
 	;משתנים לטיימר
 	start_ticks DW ?        
     current_sec DW 0          
     time_str    DB 'Time: 00:00', '$'
 	time_up db 0
-	won_game db 0
+	won_game db 0  ;האם המשתמש ניצח במשחק
 	
 	;משתנים עבור משחק הפסנתר 
 	pianocurrentFile db 'piano2.bmp', 0
@@ -92,14 +90,16 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	finished_bombs_game db 0
 	
 	;משתנים עבור משחק קוד
+	;הספרות של הקוד שמוגרל
 	code_number_1 dw ?
-	code_number_2 dw ?
-	code_number_3 dw ?
-	code_number_4 dw ?
-	user_code_number_1 dw ?
-	user_code_number_2 dw ?
-	user_code_number_3 dw ?
-	user_code_number_4 dw ?
+	code_number_2 dw ? 
+	code_number_3 dw ? 
+	code_number_4 dw ? 
+	;הספרות שהמשתמש הכניס לכספת
+	user_code_number_1 dw ? 
+	user_code_number_2 dw ? 
+	user_code_number_3 dw ? 
+	user_code_number_4 dw ? 
 
 	codecurrentFile db 'code.bmp', 0
 	entercodecurrentFile db 'code2.bmp', 0
@@ -116,7 +116,6 @@ CODESEG
 ;                    then sets bits 0-1 of port 61h to enable the PC speaker.
 ;          Receives: AX = frequency divisor (1193180 / desired frequency in Hz)
 ;           Returns: Nothing
-; Registers Changed: AL
 ; =============================================================================================
 
 proc PlayNote
@@ -140,15 +139,14 @@ proc PlayNote
 endp PlayNote
 
 ; =============================================================================================
-;         Procedure: 
-;       Description: 
-;          Receives: 
-;           Returns: 
-; Registers Changed: 
+;         Procedure: StopNote
+;       Description: מפסיק את הרמקול של המחשב
+;          Receives: Nothing
+;           Returns: Nothing
 ; =============================================================================================
 
 proc StopNote
-    ; Disable PC speaker
+    ; להפסיק את הרמקול
     in al, 61h
     and al, 0FCh
     out 61h, al
@@ -156,11 +154,10 @@ proc StopNote
 endp StopNote
 
 ; =============================================================================================
-;         Procedure: 
-;       Description: 
-;          Receives: 
-;           Returns: 
-; Registers Changed: 
+;         Procedure: OpenPianoFile
+;       Description: פותח את התמונה של הפסנתר
+;          Receives: Nothing
+;           Returns: Nothing
 ; =============================================================================================
 
 proc OpenPianoFile
@@ -182,11 +179,10 @@ openerror_piano:
 endp OpenPianoFile
 
 ; =============================================================================================
-;         Procedure: 
-;       Description: 
-;          Receives: 
-;           Returns: 
-; Registers Changed: 
+;         Procedure: OpenPianoWinFile
+;       Description: פותח את המסך של הנצחון במשחק הפסנתר
+;          Receives: Nothing
+;           Returns: Nothing
 ; =============================================================================================
 
 proc OpenPianoWinFile
@@ -208,7 +204,7 @@ openerror_pianowin:
 endp OpenPianoWinFile
 
 ; =============================================================================================
-;         Procedure: 
+;         Procedure: CheckPianoSequence
 ;       Description: 
 ;          Receives: 
 ;           Returns: 
