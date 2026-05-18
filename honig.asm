@@ -376,7 +376,7 @@ p_try_h:
 
 p_try_j:
     cmp ah, 24h         ; J = Si
-    jne p_try_w
+    jne piano_loop
     push ax
     mov ax, 2415
     call PlayNote
@@ -388,75 +388,6 @@ p_try_j:
     je piano_done
     jmp piano_loop
 
-p_try_w:
-    cmp ah, 11h         ; W = Do#
-    jne p_try_e
-    push ax
-    mov ax, 4306
-    call PlayNote
-    call piano_wait
-    call StopNote
-    pop ax
-    call CheckPianoSequence
-    cmp [finished_piano_game], 1
-    je piano_done
-    jmp piano_loop
-
-p_try_e:
-    cmp ah, 12h         ; E = Re#
-    jne p_try_r
-    push ax
-    mov ax, 3834
-    call PlayNote
-    call piano_wait
-    call StopNote
-    pop ax
-    call CheckPianoSequence
-    cmp [finished_piano_game], 1
-    je piano_done
-    jmp piano_loop
-
-p_try_r:
-    cmp ah, 13h         ; R = Fa#
-    jne p_try_t
-    push ax
-    mov ax, 3224
-    call PlayNote
-    call piano_wait
-    call StopNote
-    pop ax
-    call CheckPianoSequence
-    cmp [finished_piano_game], 1
-    je piano_done
-    jmp piano_loop
-
-p_try_t:
-    cmp ah, 14h         ; T = Sol#
-    jne p_try_y
-    push ax
-    mov ax, 2874
-    call PlayNote
-    call piano_wait
-    call StopNote
-    pop ax
-    call CheckPianoSequence
-    cmp [finished_piano_game], 1
-    je piano_done
-    jmp piano_loop
-
-p_try_y:
-    cmp ah, 15h         ; Y = La#
-    jne piano_loop
-    push ax
-    mov ax, 2560
-    call PlayNote
-    call piano_wait
-    call StopNote
-    pop ax
-    call CheckPianoSequence
-    cmp [finished_piano_game], 1
-    je piano_done
-    jmp piano_loop
 
 piano_done:
     ret
@@ -476,7 +407,7 @@ piano_exit:
 endp piano_mini_game
 
 ; =============================================================================================
-;         Procedure: 
+;         Procedure: piano_wait
 ;       Description: 
 ;          Receives: 
 ;           Returns: 
