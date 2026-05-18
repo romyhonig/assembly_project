@@ -108,7 +108,16 @@ player_sprite db 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h, 00h
 	
 	
 CODESEG
-;-----------------Piano Game------------------------------
+;-----------------Piano Mini Game------------------------------
+
+; =============================================================================================
+;         Procedure: PlayNote
+;       Description: Writes the frequency divisor in AX to PIT counter 2 via port 42h,
+;                    then sets bits 0-1 of port 61h to enable the PC speaker.
+;          Receives: AX = frequency divisor (1193180 / desired frequency in Hz)
+;           Returns: Nothing
+; Registers Changed: AL
+; =============================================================================================
 
 proc PlayNote
     ; AX = divisor (1193180 / frequency)
@@ -130,6 +139,14 @@ proc PlayNote
     ret
 endp PlayNote
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc StopNote
     ; Disable PC speaker
     in al, 61h
@@ -137,6 +154,14 @@ proc StopNote
     out 61h, al
     ret
 endp StopNote
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc OpenPianoFile
     push ax dx
@@ -156,6 +181,14 @@ openerror_piano:
     int 21h
 endp OpenPianoFile
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc OpenPianoWinFile
     push ax dx
     mov ah, 3Dh
@@ -173,6 +206,14 @@ openerror_pianowin:
     mov ax, 4c00h
     int 21h
 endp OpenPianoWinFile
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc CheckPianoSequence
     ; AH = scan code של המקש שנלחץ
@@ -228,6 +269,14 @@ check_done:
     pop si bx ax
     ret
 endp CheckPianoSequence
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc piano_mini_game
     call OpenPianoFile
@@ -430,6 +479,14 @@ piano_exit:
     ret
 endp piano_mini_game
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc piano_wait
     push ax bx cx dx
     mov ah, 00h
@@ -445,9 +502,15 @@ piano_wait_loop:
     ret
 endp piano_wait
 
-;-------------------------------------------------------- 
+;-----------------Code Mini Game------------------------------
 
-;-----------------code Game------------------------------
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc Delay
     push ax bx cx dx
@@ -463,6 +526,14 @@ delay_loop:
     pop dx cx bx ax
     ret
 endp Delay
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc GetRandom
     push cx dx
@@ -491,6 +562,14 @@ proc GetRandom
     ret
 endp GetRandom
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc Get4Randoms
 	call GetRandom
 	mov [code_number_1], ax
@@ -505,6 +584,14 @@ proc Get4Randoms
 	mov [code_number_4], ax
 	ret
 endp Get4Randoms
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc show_code_screen
 	push ax dx 
@@ -523,6 +610,14 @@ openerror_code1:
     mov ax, 4c00h
     int 21h
 endp show_code_screen
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc PrintCodeNumbers
     push ax bx dx
@@ -576,6 +671,13 @@ proc PrintCodeNumbers
     ret
 endp PrintCodeNumbers
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc show_code
     call show_code_screen   
@@ -610,6 +712,14 @@ endp show_code
 
 ;-----------the second part of the code minigame------------
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc show_enter_code_screen
 	push ax dx 
     mov ah, 3Dh
@@ -627,6 +737,14 @@ openerror_code2:
     mov ax, 4c00h
     int 21h
 endp show_enter_code_screen
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc check_if_user_got_password_right
 	mov ax, [code_number_1]
@@ -647,6 +765,13 @@ worng_password:
 	ret
 endp check_if_user_got_password_right
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 ; Draws the 4 input slots. Filled slots show the digit, empty slots show '_'
 proc DisplayInputDigits
@@ -732,6 +857,13 @@ slot4_print:
     ret
 endp DisplayInputDigits
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc EnterPassword
     push ax bx dx
@@ -837,7 +969,16 @@ enter_submit:
 endp EnterPassword
 
 
-;-------------------Bombs Game------------------------------
+;-------------------Bombs Mini Game------------------------------
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc bombs_Win
 	call bombs_OpenWinFile
     call ReadHeader
@@ -846,6 +987,14 @@ proc bombs_Win
     call CopyBitmap
 	ret
 endp bombs_Win
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc bombs_OpenWinFile
 push ax dx 
@@ -865,6 +1014,14 @@ openerror_bombs1:
     int 21h
 endp bombs_OpenWinFile
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc OpenFile_bombs
     push ax dx 
     mov ah, 3Dh
@@ -882,6 +1039,14 @@ openerror_bombs:
     mov ax, 4c00h
     int 21h
 endp OpenFile_bombs
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc CheckCollision
     push ax bx cx dx es
@@ -947,6 +1112,14 @@ finish_col:
     ret
 endp CheckCollision
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 ; --- פונקציית עזר לבדיקת סוג הצבע ---
 proc ProcessColor
     ; מקבלת AL כצבע, מחזירה DL=1 אם הייתה התנגשות שצריך להפסיק בגללה
@@ -968,7 +1141,15 @@ hit_green:
     jmp bombs_win_game
 	ret
 endp ProcessColor
-	
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc bombs_mini_game	
 bombs_main_menu: 
 	mov [playerX], 260
@@ -1062,6 +1243,14 @@ endp bombs_mini_game
 
 ;--------------------Main Game--------------------------------
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc UpdateTimer
     push ax
     push bx
@@ -1118,6 +1307,14 @@ timer_not_up:
     ret
 endp UpdateTimer
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc DisplayTimer
     push ax bx cx dx es
 
@@ -1139,6 +1336,13 @@ proc DisplayTimer
     ret
 endp DisplayTimer
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc Lost
 	call OpenLoseFile
@@ -1158,6 +1362,14 @@ proc Win
 	ret
 endp Win
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc OpenRulesFile 
 push ax dx 
     mov ah, 3Dh
@@ -1175,6 +1387,14 @@ openerror5:
     mov ax, 4c00h
     int 21h
 endp OpenRulesFile
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc OpenWinFile
 push ax dx 
@@ -1194,6 +1414,13 @@ openerror3:
     int 21h
 endp OpenWinFile
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc OpenLoseFile 
 	push ax dx 
@@ -1213,6 +1440,13 @@ openerror4:
     int 21h
 endp OpenLoseFile
 	
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc OpenStartFile
     push ax dx 
@@ -1232,6 +1466,14 @@ openerror2:
     int 21h
 endp OpenStartFile
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc OpenFile
     push ax dx 
     mov ah, 3Dh
@@ -1250,6 +1492,14 @@ openerror:
     int 21h
 endp OpenFile
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc ReadHeader
     mov ah, 3fh
     mov bx, [filehandle]
@@ -1259,6 +1509,14 @@ proc ReadHeader
     ret
 endp ReadHeader
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc ReadPalette
     mov ah, 3fh
     mov bx, [filehandle]
@@ -1267,6 +1525,14 @@ proc ReadPalette
     int 21h 
     ret
 endp ReadPalette
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc CopyPal
     push ax cx dx si
@@ -1291,6 +1557,14 @@ PalLoop:
     pop si dx cx ax
     ret
 endp CopyPal
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc CopyBitmap
     push ax bx cx dx di es
@@ -1324,6 +1598,14 @@ PrintBMPLoop:
     ret
 endp CopyBitmap
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc SaveBackground
     push ax bx cx dx si di es
     mov ax, 0A000h
@@ -1352,6 +1634,14 @@ save_loop_x:
     ret
 endp SaveBackground
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
+
 proc RestoreBackground
     push ax bx cx dx si di es
     mov ax, 0A000h
@@ -1379,7 +1669,13 @@ rest_loop_x:
     ret
 endp RestoreBackground
 
-
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc DrawPlayer
     push ax bx cx dx si di
@@ -1425,6 +1721,13 @@ skip_pix:
     ret
 endp DrawPlayer
 
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc waitForEnter
 wait_for_enter: 
@@ -1434,6 +1737,14 @@ wait_for_enter:
 	jne wait_for_enter 
 	ret 
 endp waitForEnter
+
+; =============================================================================================
+;         Procedure: 
+;       Description: 
+;          Receives: 
+;           Returns: 
+; Registers Changed: 
+; =============================================================================================
 
 proc ShowRules 
 	call OpenRulesFile ;פתיחת מסך חוקים
@@ -1446,6 +1757,7 @@ endp ShowRules
 
 jmp_to_lost_game:
 	jmp lost_game
+	
 start:
     mov ax, @data
     mov ds, ax
