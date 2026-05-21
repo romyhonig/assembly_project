@@ -1,4 +1,4 @@
-# 🤖 בוט הגנב — Bot The Thief
+# Bot The Thief 🤖 
 
 > A top-down puzzle-platformer written entirely in x86 Assembly (TASM/IDEAL), running in VGA Mode 13h (320×200, 256 colors).
 
